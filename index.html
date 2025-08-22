@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftLink - URL Shortener</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        .url-item {
+            transition: all 0.3s ease;
+        }
+        .url-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        /* Preloader Styles */
+        #preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        
+        .preloader-content {
+            text-align: center;
+            transform: scale(0.8);
+            opacity: 0;
+            animation: preloaderFadeIn 1s ease-out forwards 0.5s;
+        }
+        
+        @keyframes preloaderFadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) translateY(30px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .logo-transition {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+        
+        .logo-inner {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .logo-bolt {
+            font-size: 48px;
+            color: #667eea;
+            animation: boltStrike 1.5s ease-out forwards;
+            transform-origin: center;
+            opacity: 0;
+        }
+        
+        @keyframes boltStrike {
+            0% {
+                opacity: 0;
+                transform: scale(0) rotate(-45deg);
+                filter: blur(10px);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2) rotate(0deg);
+                filter: blur(0px);
+            }
+            70% {
+                transform: scale(1.1) rotate(5deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+        
+        .logo-ring {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 3px solid transparent;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spinRing 1.5s linear infinite;
+        }
+        
+        .logo-ring:nth-child(2) {
+            border-top-color: #764ba2;
+            animation-delay: 0.3s;
+            animation-duration: 2s;
+        }
+        
+        .logo-ring:nth-child(3) {
+            border-top-color: #ffffff;
+            animation-delay: 0.6s;
+            animation-duration: 2.5s;
+        }
+        
+        @keyframes spinRing {
+            0% {
+                transform: rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: rotate(360deg);
+                opacity: 0.8;
+            }
+        }
+        
+        .preloader-text {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-top: 20px;
+            opacity: 0;
+            animation: textFadeIn 1s ease-out forwards 1s;
+        }
+        
+        @keyframes textFadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .loading-dots {
+            display: inline-block;
+            margin-left: 5px;
+        }
+        
+        .loading-dots span {
+            opacity: 0;
+            animation: dotPulse 1.5s infinite;
+        }
+        
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes dotPulse {
+            0%, 100% {
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        
+        .main-content {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.8s ease-out;
+        }
+        
+        .main-content.loaded {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Enhanced logo animation for main page */
+        .enhanced-logo {
+            position: relative;
+        }
+        
+        .enhanced-logo-inner {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .enhanced-logo::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 140px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            animation: logoPulse 2s ease-out 0.5s forwards;
+        }
+        
+        @keyframes logoPulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.5);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <!-- Preloader -->
+    <div id="preloader">
+        <div class="preloader-content">
+            <div class="logo-transition">
+                <div class="logo-inner">
+                    <i class="fas fa-bolt logo-bolt"></i>
+                </div>
+                <div class="logo-ring"></div>
+                <div class="logo-ring"></div>
+                <div class="logo-ring"></div>
+            </div>
+            <div class="preloader-text">
+                SwiftLink<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container mx-auto px-4 py-8">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <div class="pulse enhanced-logo inline-block mb-6">
+                    <div class="enhanced-logo-inner">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/8590c2c1-91f7-43cd-a8fa-e5be50781239.png" alt="SwiftLink logo featuring a stylized lightning bolt intersecting a link chain on a purple gradient background" class="w-32 h-32 rounded-full mx-auto bg-white p-2">
+                    </div>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">SwiftLink</h1>
+                <p class="text-xl text-white/90 max-w-2xl mx-auto">Transform lengthy URLs into short, shareable links with our lightning-fast URL shortener</p>
+            </div>
+
+            <!-- Main Card -->
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl card-shadow p-6 md:p-8 mb-8">
+                <!-- URL Input Form -->
+                <div class="mb-8">
+                    <label for="urlInput" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-link mr-2"></i>Enter your URL
+                    </label>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input 
+                            type="url" 
+                            id="urlInput" 
+                            placeholder="https://example.com/very-long-url-path-here" 
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                        <button 
+                            id="shortenBtn" 
+                            class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                        >
+                            <i class="fas fa-bolt mr-2"></i>Shorten
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Result Display -->
+                <div id="resultSection" class="hidden mb-8">
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-sm text-gray-600 mb-2">Your shortened URL:</p>
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div class="flex-1 bg-white px-4 py-2 rounded border border-gray-300">
+                                <span id="shortUrl" class="text-purple-600 font-mono break-all"></span>
+                            </div>
+                            <button 
+                                id="copyBtn" 
+                                class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                            >
+                                <i class="fas fa-copy mr-2"></i>Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Section -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <i class="fas fa-link text-3xl text-purple-600 mb-2"></i>
+                        <h3 class="font-semibold text-gray-800" id="totalLinks">0</h3>
+                        <p class="text-sm text-gray-600">Total Links</p>
+                    </div>
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <i class="fas fa-mouse-pointer text-3xl text-blue-600 mb-2"></i>
+                        <h3 class="font-semibold text-gray-800" id="totalClicks">0</h3>
+                        <p class="text-sm text-gray-600">Total Clicks</p>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <i class="fas fa-chart-line text-3xl text-green-600 mb-2"></i>
+                        <h3 class="font-semibold text-gray-800" id="savedChars">0</h3>
+                        <p class="text-sm text-gray-600">Characters Saved</p>
+                    </div>
+                </div>
+
+                <!-- Recent URLs -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-history mr-2"></i>Recent Links
+                    </h3>
+                    <div id="urlList" class="space-y-3">
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-4xl mb-2"></i>
+                            <p>Loading recent links...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 text-center">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-rocket text-2xl text-purple-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Lightning Fast</h3>
+                    <p class="text-gray-600 text-sm">Generate shortened URLs instantly with our optimized algorithm</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-shield-alt text-2xl text-blue-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Secure & Reliable</h3>
+                    <p class="text-gray-600 text-sm">All URLs are processed server-side for maximum privacy and security</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm rounded-xl p-6 text-center">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-chart-pie text-2xl text-green-600"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Track Analytics</h3>
+                    <p class="text-gray-600 text-sm">Monitor click statistics and performance of your shortened links</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-white/80 text-sm">
+                <p>Built with ❤️ using Node.js, Express, and SQLite</p>
+                <p class="mt-2">© 2024 SwiftLink URL Shortener</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        class URLShortener {
+            constructor() {
+                this.initPreloader();
+            }
+
+            initPreloader() {
+                // Show preloader for 2.5 seconds, then transition to main content
+                setTimeout(() => {
+                    const preloader = document.getElementById('preloader');
+                    const mainContent = document.querySelector('.main-content');
+                    
+                    // Fade out preloader
+                    preloader.style.opacity = '0';
+                    preloader.style.transform = 'scale(1.1)';
+                    
+                    // Show main content
+                    mainContent.classList.add('loaded');
+                    
+                    // Remove preloader from DOM after transition
+                    setTimeout(() => {
+                        preloader.remove();
+                        this.initApp();
+                    }, 800);
+                }, 2500);
+            }
+
+            initApp() {
+                this.bindEvents();
+                this.loadStats();
+                this.loadRecentURLs();
+                
+                // Set up periodic stats refresh
+                setInterval(() => this.loadStats(), 30000);
+                setInterval(() => this.loadRecentURLs(), 15000);
+            }
+
+            bindEvents() {
+                document.getElementById('shortenBtn').addEventListener('click', () => this.shortenURL());
+                document.getElementById('urlInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.shortenURL();
+                });
+                document.getElementById('copyBtn').addEventListener('click', () => this.copyToClipboard());
+            }
+
+            async shortenURL() {
+                const input = document.getElementById('urlInput');
+                const originalUrl = input.value.trim();
+                const button = document.getElementById('shortenBtn');
+
+                if (!originalUrl) {
+                    this.showError('Please enter a URL');
+                    return;
+                }
+
+                if (!this.isValidUrl(originalUrl)) {
+                    this.showError('Please enter a valid URL (include http:// or https://)');
+                    return;
+                }
+
+                // Show loading state
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Shortening...';
+                button.disabled = true;
+                document.body.classList.add('loading');
+
+                try {
+                    const response = await fetch(`${API_BASE}/api/shorten`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ originalUrl })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to shorten URL');
+                    }
+
+                    const data = await response.json();
+                    this.showResult(data.shortUrl);
+                    this.loadStats();
+                    this.loadRecentURLs();
+                    input.value = '';
+
+                } catch (error) {
+                    this.showError(error.message);
+                } finally {
+                    // Restore button state
+                    button.innerHTML = '<i class="fas fa-bolt mr-2"></i>Shorten';
+                    button.disabled = false;
+                    document.body.classList.remove('loading');
+                }
+            }
+
+            isValidUrl(url) {
+                try {
+                    new URL(url);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            showResult(shortUrl) {
+                document.getElementById('shortUrl').textContent = shortUrl;
+                document.getElementById('resultSection').classList.remove('hidden');
+                
+                // Scroll to result
+                document.getElementById('resultSection').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+
+            copyToClipboard() {
+                const shortUrl = document.getElementById('shortUrl').textContent;
+                navigator.clipboard.writeText(shortUrl).then(() => {
+                    const btn = document.getElementById('copyBtn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+                    btn.classList.add('bg-green-600');
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('bg-green-600');
+                    }, 2000);
+                });
+            }
+
+            showError(message) {
+                // Create a nice error toast notification
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                toast.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>${message}</span>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            }
+
+            async loadStats() {
+                try {
+                    const response = await fetch(`${API_BASE}/api/stats`);
+                    if (!response.ok) throw new Error('Failed to load stats');
+                    
+                    const stats = await response.json();
+                    document.getElementById('totalLinks').textContent = stats.totalLinks.toLocaleString();
+                    document.getElementById('totalClicks').textContent = stats.totalClicks.toLocaleString();
+                    document.getElementById('savedChars').textContent = stats.savedChars.toLocaleString();
+                } catch (error) {
+                    console.error('Error loading stats:', error);
+                }
+            }
+
+            async loadRecentURLs() {
+                try {
+                    const response = await fetch(`${API_BASE}/api/recent`);
+                    if (!response.ok) throw new Error('Failed to load recent URLs');
+                    
+                    const urls = await response.json();
+                    this.renderURLList(urls);
+                } catch (error) {
+                    console.error('Error loading recent URLs:', error);
+                    this.renderURLError();
+                }
+            }
+
+            renderURLList(urls) {
+                const container = document.getElementById('urlList');
+                
+                if (urls.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                            <p>No links shortened yet</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = urls.map(url => `
+                    <div class="url-item bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex-1">
+                                <div class="text-sm text-gray-600 mb-1">
+                                    ${new Date(url.createdAt).toLocaleDateString()}
+                                </div>
+                                <div class="font-mono text-purple-600 text-sm break-all mb-2">
+                                    ${url.shortUrl}
+                                </div>
+                                <div class="text-xs text-gray-500 break-all">
+                                    ${this.truncateText(url.original_url, 50)}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    ${url.clicks} clicks
+                                </span>
+                                <button onclick="navigator.clipboard.writeText('${url.shortUrl}')" 
+                                        class="p-2 text-gray-500 hover:text-purple-600 transition-colors">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            renderURLError() {
+                const container = document.getElementById('urlList');
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
+                        <p>Unable to load recent links</p>
+                        <button onclick="window.location.reload()" class="text-purple-600 hover:text-purple-700 text-sm mt-2">
+                            <i class="fas fa-refresh mr-1"></i>Retry
+                        </button>
+                    </div>
+                `;
+            }
+
+            truncateText(text, maxLength) {
+                return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+            }
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new URLShortener();
+        });
+
+        // Add service worker-like functionality for offline support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(console.error);
+        }
+    </script>
+</body>
+</html>
