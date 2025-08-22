@@ -589,8 +589,14 @@
                                     ${url.clicks} clicks
                                 </span>
                                 <button onclick="navigator.clipboard.writeText('${url.shortUrl}')" 
-                                        class="p-2 text-gray-500 hover:text-purple-600 transition-colors">
+                                        class="p-2 text-gray-500 hover:text-purple-600 transition-colors"
+                                        title="Copy to clipboard">
                                     <i class="fas fa-copy"></i>
+                                </button>
+                                <button onclick="urlShortener.deleteURL('${url.short_code}')" 
+                                        class="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                                        title="Delete link">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </div>
@@ -614,11 +620,56 @@
             truncateText(text, maxLength) {
                 return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
             }
+
+            async deleteURL(shortCode) {
+                console.log('Delete URL called with shortCode:', shortCode);
+                
+                if (!confirm('Are you sure you want to delete this link? This action cannot be undone.')) {
+                    return;
+                }
+
+                try {
+                    console.log('Sending DELETE request to:', `${API_BASE}/api/url/${shortCode}`);
+                    const response = await fetch(`${API_BASE}/api/url/${shortCode}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    console.log('Delete response status:', response.status);
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        console.error('Delete error response:', error);
+                        throw new Error(error.error || 'Failed to delete URL');
+                    }
+
+                    const result = await response.json();
+                    console.log('Delete success:', result);
+
+                    // Show success message
+                    this.showMessage('Link deleted successfully!', 'success');
+
+                    // Refresh the recent URLs list
+                    this.loadRecentURLs();
+
+                    // Update stats
+                    this.loadStats();
+
+                } catch (error) {
+                    console.error('Error deleting URL:', error);
+                    this.showMessage(error.message || 'Failed to delete link', 'error');
+                }
+            }
         }
+
+        // Global instance for button callbacks
+        let urlShortener;
 
         // Initialize the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            new URLShortener();
+            urlShortener = new URLShortener();
         });
 
         // Add service worker-like functionality for offline support

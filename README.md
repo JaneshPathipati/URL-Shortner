@@ -117,6 +117,42 @@ python run.py
 
 The application will automatically reload on code changes.
 
+## Deployment
+
+### Railway Deployment
+
+This project is ready for deployment on Railway. The following files are configured for Railway:
+
+- `Procfile` - Tells Railway how to start the application
+- `requirements.txt` - Lists all Python dependencies
+- `railway.json` - Railway configuration file
+
+To deploy on Railway:
+
+1. Push your code to a GitHub repository
+2. Connect your GitHub repo to Railway
+3. Railway will automatically detect the Python project and deploy it
+4. The app will be available at the Railway-provided URL
+
+### Manual Deployment
+
+For other platforms, you can use:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start with gunicorn (production)
+gunicorn app:app
+
+# Or start with Python (development)
+python app.py
+```
+
+### Environment Variables
+
+- `PORT` - Port number (automatically set by Railway, defaults to 3000)
+
 ## License
 
 MIT License

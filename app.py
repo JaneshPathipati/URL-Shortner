@@ -7,10 +7,10 @@ from urllib.parse import urlparse
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
 
 # Configuration
-PORT = 3000
+PORT = int(os.environ.get('PORT', 3000))
 
 # Initialize database
 def initialize_database():
@@ -64,6 +64,9 @@ def get_db_connection():
     conn = sqlite3.connect('urls.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+# Initialize database when module is imported (for gunicorn)
+initialize_database()
 
 # API Routes
 
@@ -221,7 +224,7 @@ def get_recent_urls():
         conn.close()
         return jsonify({'error': 'Database error'}), 500
 
-@app.route('/api/url/<short_code>')
+@app.route('/api/url/<short_code>', methods=['GET'])
 def get_url_details(short_code):
     conn = get_db_connection()
     
@@ -256,6 +259,50 @@ def get_url_details(short_code):
         conn.close()
         return jsonify({'error': 'Database error'}), 500
 
+@app.route('/api/url/<short_code>', methods=['DELETE'])
+def delete_url(short_code):
+    print(f"DELETE request received for short_code: {short_code}")
+    conn = get_db_connection()
+    
+    try:
+        # Check if URL exists
+        url = conn.execute(
+            'SELECT id FROM urls WHERE short_code = ?', 
+            (short_code,)
+        ).fetchone()
+        
+        if not url:
+            print(f"URL not found for short_code: {short_code}")
+            conn.close()
+            return jsonify({'error': 'URL not found'}), 404
+        
+        print(f"Found URL with id: {url['id']}")
+        
+        # Delete analytics data first (foreign key constraint)
+        analytics_deleted = conn.execute(
+            'DELETE FROM analytics WHERE url_id = ?',
+            (url['id'],)
+        ).rowcount
+        print(f"Deleted {analytics_deleted} analytics records")
+        
+        # Delete the URL
+        url_deleted = conn.execute(
+            'DELETE FROM urls WHERE short_code = ?',
+            (short_code,)
+        ).rowcount
+        print(f"Deleted {url_deleted} URL record")
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"Successfully deleted URL: {short_code}")
+        return jsonify({'message': 'URL deleted successfully'}), 200
+        
+    except Exception as e:
+        print(f"Error deleting URL: {e}")
+        conn.close()
+        return jsonify({'error': 'Database error'}), 500
+
 @app.route('/api/health')
 def health_check():
     return jsonify({'status': 'OK', 'timestamp': datetime.now().isoformat()})
@@ -277,4 +324,4 @@ if __name__ == '__main__':
     # Initialize database
     initialize_database()
     print(f"Server running on http://localhost:{PORT}")
-    app.run(debug=True, port=PORT)
+    app.run(debug=False, host='0.0.0.0', port=PORT)
